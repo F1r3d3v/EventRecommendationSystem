@@ -50,9 +50,14 @@ class EventFuzzySystem:
         self.budget_alignment['within_budget'] = fuzz.trimf(self.budget_alignment.universe, [70, 100, 100])
         
         # Recommendation Score
-        self.recommendation['low'] = fuzz.trimf(self.recommendation.universe, [0, 15, 30])
-        self.recommendation['medium'] = fuzz.trimf(self.recommendation.universe, [20, 45, 70])
-        self.recommendation['high'] = fuzz.trimf(self.recommendation.universe, [60, 80, 100])
+        # self.recommendation['low'] = fuzz.trimf(self.recommendation.universe, [0, 15, 30])
+        # self.recommendation['medium'] = fuzz.trimf(self.recommendation.universe, [20, 45, 70])
+        # self.recommendation['high'] = fuzz.trimf(self.recommendation.universe, [60, 80, 100])
+        # in your _define_fuzzy_sets(), replace recommendation with:
+        self.recommendation['low']    = fuzz.trimf(self.recommendation.universe, [  0,  0,  50])
+        self.recommendation['medium'] = fuzz.trimf(self.recommendation.universe, [ 25, 50,  75])
+        self.recommendation['high']   = fuzz.trimf(self.recommendation.universe, [ 50, 100, 100])
+
 
     def _define_rules(self):
         """Define the fuzzy rules for the inference system"""
