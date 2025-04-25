@@ -62,6 +62,10 @@ class EventFuzzySystem:
     def _define_rules(self):
         """Define the fuzzy rules for the inference system"""
         self.rules = [
+            # Emphasize interest match by overriding other conditions when interest is decisive
+            ctrl.Rule(self.interest_match['high'], self.recommendation['high']),
+            ctrl.Rule(self.interest_match['low'], self.recommendation['low']),
+
             # High priority rules
             ctrl.Rule(self.interest_match['high'] & self.location_proximity['near'] & 
                      self.time_overlap['complete'] & self.budget_alignment['within_budget'], 
