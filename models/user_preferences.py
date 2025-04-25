@@ -64,21 +64,16 @@ class UserPreferences:
             match_score = 50  # Neutral score if no preferences set
         else:
             # Ensure current event categories are always treated as a set
-            current_event_categories = set()
+            
+            current_event_categories = list()
             if isinstance(event.category, str):
-                current_event_categories.add(event.category)
+                current_event_categories.append(event.category)
             elif isinstance(event.category, list):
-                current_event_categories.update(event.category)
-
-            total_weight = sum(self.categories.values())
-            # Calculate matching weight based on intersection of preference keys and event categories
-            matching_weight = sum(weight for category, weight in self.categories.items()
-                                 if category in current_event_categories)
-
-            if total_weight == 0:
-                 match_score = 50 # Default if weights somehow sum to 0
-            else:
-                match_score = (matching_weight / total_weight) * 100
+                current_event_categories = event.category
+            
+            # Compute a score for each matching category independently
+            matched_scores = [self.categories[cat] * 100 if cat in self.categories else 50 for cat in current_event_categories]
+            match_score = sum(matched_scores) / len(matched_scores)
 
         # --- Calculate History Boost ---
         boost = 0

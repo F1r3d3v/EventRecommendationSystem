@@ -118,6 +118,10 @@ class EventFuzzySystem:
         Returns:
             Recommendation score (0-100)
         """
+
+        # Reset simulation to clear previous state
+        self.simulation.reset()
+
         # Input values to the simulation
         self.simulation.input['interest_match'] = interest
         self.simulation.input['location_proximity'] = proximity
