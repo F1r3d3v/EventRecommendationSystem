@@ -1,15 +1,12 @@
-# gui/app.py
 import tkinter as tk
 from tkinter import ttk
 
-# Assuming RecommendationService handles Event loading now
 from services.recommendation_service import RecommendationService
-from models.event import Event # May not be needed directly here anymore
 
 from gui.location_panel import LocationPanel
 from gui.preference_panel import PreferencePanel
 from gui.event_list_panel import EventListPanel
-from gui.event_details_panel import EventDetailsPanel # New Panel
+from gui.event_details_panel import EventDetailsPanel
 from gui.time_panel import TimePreferencePanel
 from gui.budget_panel import BudgetPanel
 from gui.history_panel import HistoryPanel
@@ -52,6 +49,7 @@ class EventRecommenderApp:
 
         # Initial population of recommendations
         self.refresh_recommendations()
+
         # Select the first event initially if any
         self.event_list_panel.select_first()
 
@@ -62,7 +60,6 @@ class EventRecommenderApp:
         main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Left panel - Event list
-        # Pass 'self' (the app coordinator) to the panels for callbacks
         self.event_list_panel = EventListPanel(main_paned, self)
         main_paned.add(self.event_list_panel, weight=1) # Add list first
 
@@ -76,7 +73,6 @@ class EventRecommenderApp:
         pref_notebook = ttk.Notebook(self.settings_tab)
         pref_notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # Panels now take `self` (app coordinator)
         self.location_panel = LocationPanel(pref_notebook, self)
         pref_notebook.add(self.location_panel, text="Location")
 
@@ -89,14 +85,6 @@ class EventRecommenderApp:
         self.budget_panel = BudgetPanel(pref_notebook, self)
         pref_notebook.add(self.budget_panel, text="Budget")
 
-        # Apply button removed - changes apply more dynamically via callbacks
-        # We might add an explicit "Refresh Recommendations" button if needed
-        # apply_frame = ttk.Frame(self.settings_tab)
-        # apply_frame.pack(fill=tk.X, padx=10, pady=10)
-        # ttk.Button(apply_frame, text="Apply Preferences",
-        #           command=self.refresh_recommendations).pack(side=tk.RIGHT)
-
-
     def _setup_history_tab(self):
         """Setup the event history tab"""
         self.history_panel = HistoryPanel(self.history_tab, self)
@@ -105,7 +93,6 @@ class EventRecommenderApp:
 
     def _setup_system_tab(self):
         """Setup the system visualization tab"""
-        # Pass the fuzzy system instance from the service
         self.system_panel = FuzzyVisualizationPanel(self.system_tab, self.service.fuzzy_system)
         self.system_panel.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -126,8 +113,6 @@ class EventRecommenderApp:
         # Clear details panel if no events match
         if not recommended_events:
              self.event_details_panel.clear_details()
-        # else: # Optionally select the first one after refresh
-        #     self.event_list_panel.select_first()
 
 
     def event_selected(self, event):
@@ -141,9 +126,7 @@ class EventRecommenderApp:
         """Called by EventDetailsPanel to add the event to history."""
         if event:
             self.service.add_event_to_history(event)
-            # Update history view
             self.history_panel.update_history_display()
-            # Re-calculate recommendations as history influences scores
             self.refresh_recommendations()
 
     def request_remove_from_history(self, event):
@@ -151,7 +134,7 @@ class EventRecommenderApp:
         if event:
              self.service.remove_event_from_history(event)
              self.history_panel.update_history_display()
-             self.refresh_recommendations() # History changed, update recommendations
+             self.refresh_recommendations()
 
     def location_preference_updated(self, lat, lon, max_distance):
         """Called by LocationPanel when location/distance changes."""
@@ -180,7 +163,3 @@ class EventRecommenderApp:
     def get_history_data(self):
         """Provide history data for the HistoryPanel."""
         return self.service.get_history()
-
-    # --- End Callback Methods ---
-
-# Note: _load_sample_events is removed from App, now handled by RecommendationService

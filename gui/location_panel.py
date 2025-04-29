@@ -1,18 +1,20 @@
-# gui/location_panel.py
+import os
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.image as mpimg
+from matplotlib.patches import Ellipse
+import numpy as np
 from config import (
-    MAP_DEFAULT_CENTER_LAT, MAP_DEFAULT_CENTER_LON,
-    MAP_LAT_LIMITS, MAP_LON_LIMITS
+    DEFAULT_MAX_DISTANCE, MAP_LAT_LIMITS, MAP_LON_LIMITS, ROOT_DIR
 )
 
 class LocationPanel(ttk.Frame):
     """Panel for setting location preferences."""
     def __init__(self, parent, app_coordinator):
         super().__init__(parent)
-        self.app = app_coordinator # Reference to the main app coordinator
+        self.app = app_coordinator
 
         # Get initial preferences
         prefs = self.app.get_current_preferences()
@@ -24,20 +26,26 @@ class LocationPanel(ttk.Frame):
         map_frame = ttk.LabelFrame(self, text="Select Your Location (Click on Map)")
         map_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Matplotlib Map Placeholder
-        self.fig, self.ax = plt.subplots(figsize=(8, 5)) # Adjusted size
-        self.fig.subplots_adjust(left=0.02, right=0.98, top=0.95, bottom=0.02) # Less margin
+        # Calculate aspect ratio based on map coordinates
+        map_width = MAP_LON_LIMITS[1] - MAP_LON_LIMITS[0]
+        map_height = MAP_LAT_LIMITS[1] - MAP_LAT_LIMITS[0]
+        aspect_ratio = map_width / map_height
+        
+        # Create a figure
+        self.fig, self.ax = plt.subplots(figsize=(8, 8/aspect_ratio))
+        self.fig.subplots_adjust(left=0.02, right=0.98, top=0.95, bottom=0.02)
         self._setup_map()
         self.canvas = FigureCanvasTkAgg(self.fig, master=map_frame)
         self.canvas_widget = self.canvas.get_tk_widget()
         self.canvas_widget.pack(fill=tk.BOTH, expand=True)
         self.fig.canvas.mpl_connect('button_press_event', self._on_map_click)
-        self.user_marker = None # Store the marker artist
-        self.radius_circle = None # Store the circle artist
+        self.user_marker = None
+        self.radius_circle = None
+        self.event_markers = []
 
         # Coordinates Input
         coords_frame = ttk.Frame(self)
-        coords_frame.pack(fill=tk.X, padx=10, pady=(5, 10)) # Reduced padding
+        coords_frame.pack(fill=tk.X, padx=10, pady=(5, 10))
 
         ttk.Label(coords_frame, text="Latitude:").grid(row=0, column=0, padx=5, pady=2)
         self.lat_var = tk.DoubleVar(value=initial_lat)
@@ -64,29 +72,37 @@ class LocationPanel(ttk.Frame):
         self.distance_label = ttk.Label(distance_frame, text=f"{initial_distance} km", width=8, anchor=tk.E)
         self.distance_label.pack(side=tk.RIGHT, padx=(5, 10), pady=5)
 
-        self.distance_slider = ttk.Scale(distance_frame, from_=1, to=100,
+        self.distance_slider = ttk.Scale(distance_frame, from_=1, to=2*DEFAULT_MAX_DISTANCE,
                                    variable=self.distance_var, orient=tk.HORIZONTAL,
                                    command=self._on_distance_change)
         self.distance_slider.pack(fill=tk.X, padx=10, pady=5, expand=True)
 
         # Initial setup
         self._update_map_marker(initial_lat, initial_lon)
+        self._update_event_markers() # Add event markers to map
+
 
     def _setup_map(self):
         """Setup the basic map appearance."""
         self.ax.set_xlim(MAP_LON_LIMITS)
         self.ax.set_ylim(MAP_LAT_LIMITS)
-        self.ax.set_facecolor('#E6F3FF') # Light blue
-        # Basic San Francisco shape (replace with real map data if desired)
-        land_x = [-122.5125, -122.3754, -122.3569, -122.3942, -122.4698, -122.5012, -122.5125]
-        land_y = [37.7081, 37.7081, 37.8105, 37.8294, 37.8105, 37.7595, 37.7081]
-        self.ax.fill(land_x, land_y, color='#C5D8B5', alpha=0.8)
-        self.ax.text(MAP_DEFAULT_CENTER_LON, MAP_DEFAULT_CENTER_LAT, "San Francisco", fontsize=10, ha='center', va='center')
+
+        map_width = MAP_LON_LIMITS[1] - MAP_LON_LIMITS[0]
+        map_height = MAP_LAT_LIMITS[1] - MAP_LAT_LIMITS[0]
+        aspect_ratio = map_width / map_height
+        
+        # Display the image as background
+        map_path = os.path.join(ROOT_DIR, "assets/map.png")          
+        map_img = mpimg.imread(map_path)
+        self.ax.imshow(map_img, 
+                      extent=[MAP_LON_LIMITS[0], MAP_LON_LIMITS[1], 
+                              MAP_LAT_LIMITS[0], MAP_LAT_LIMITS[1]], 
+                      aspect=aspect_ratio, 
+                      zorder=0)
         self.ax.set_xticks([])
         self.ax.set_yticks([])
-        # self.ax.set_xlabel("Longitude") # Keep axes minimal
-        # self.ax.set_ylabel("Latitude")
         self.ax.set_title("Click to Set Location", fontsize=10)
+
 
     def _update_map_marker(self, lat, lon):
         """Update the user location marker and radius circle on the map."""
@@ -98,23 +114,37 @@ class LocationPanel(ttk.Frame):
             self.radius_circle.remove()
             self.radius_circle = None
 
-        # Add new marker
+        # Add currenct location marker
         self.user_marker = self.ax.scatter(lon, lat, s=60, color='red', marker='o', zorder=5, label="Your Location")
 
-        # Add new radius circle
+        # Add radius circle
         radius_km = self.distance_var.get()
-        # Approximation: degrees = km / 111 (highly inaccurate away from equator/small scales)
-        radius_deg = radius_km / 111.0
-        self.radius_circle = plt.Circle((lon, lat), radius_deg, color='red', fill=False,
-                                   alpha=0.5, linestyle='--', zorder=4, label=f"{radius_km} km Radius")
+        
+        # Convert radius from km to degrees
+        # 111 km per degree of latitude 
+        radius_lat_degrees = radius_km/111
+        
+        # Longitude degrees per kilometer varies with latitude
+        # At the equator, 1 degree of longitude = 111 km
+        # At latitude φ, 1 degree of longitude = 111 * cos(φ) km
+        radius_lon_degrees = radius_km/(111 * np.cos(np.radians(lat)))
+        
+        # Create an ellipse with appropriate axes lengths
+        self.radius_circle = Ellipse((lon, lat), 
+                                    width=2*radius_lon_degrees, 
+                                    height=2*radius_lat_degrees, 
+                                    color='red', fill=False,
+                                    alpha=0.5, linestyle='--', zorder=4, 
+                                    label=f"{radius_km} km Radius")
         self.ax.add_patch(self.radius_circle)
 
-        # Optional: Add legend (can get cluttered)
-        # handles, labels = self.ax.get_legend_handles_labels()
-        # if "Your Location" not in labels: # Add legend only once
-        #     self.ax.legend(loc='upper right', fontsize=8)
+        # Update the legend with user marker and radius circle
+        handles = [self.user_marker, self.radius_circle]
+        labels = ["Your Location", f"{radius_km} km Radius"]
+        self.ax.legend(handles=handles, loc='upper right', fontsize=8)
 
-        self.canvas.draw_idle() # Use draw_idle for potentially better performance
+        self.canvas.draw_idle()
+
 
     def _on_map_click(self, event):
         """Handle map click: update coords, marker, and notify app."""
@@ -125,7 +155,8 @@ class LocationPanel(ttk.Frame):
             self.lat_var.set(lat)
             self.lon_var.set(lon)
             self._update_map_marker(lat, lon)
-            self._notify_app() # Notify coordinator about the change
+            self._notify_app()
+
 
     def _update_location_from_inputs(self, event=None):
         """Update map marker from lat/lon entry fields and notify app."""
@@ -138,9 +169,7 @@ class LocationPanel(ttk.Frame):
                 self._update_map_marker(lat, lon)
                 self._notify_app()
             else:
-                # Indicate error or reset to valid values?
                 print("Warning: Coordinates outside expected map bounds.")
-                # Optionally reset marker to last valid position or center
         except tk.TclError:
             print("Error: Invalid latitude/longitude input.") # Handle non-numeric input
 
@@ -153,6 +182,7 @@ class LocationPanel(ttk.Frame):
         self._update_map_marker(self.lat_var.get(), self.lon_var.get())
         self._notify_app()
 
+
     def _notify_app(self):
         """Inform the application coordinator about the preference change."""
         try:
@@ -161,7 +191,49 @@ class LocationPanel(ttk.Frame):
              distance = self.distance_var.get()
              self.app.location_preference_updated(lat, lon, distance)
         except tk.TclError:
-             print("Error notifying app due to invalid coordinate values.") # Should not happen if validation is good
+             print("Error notifying app due to invalid coordinate values.")
+
+
+    def _update_event_markers(self):
+        """Add event markers to the map."""
+        # Clear any existing event markers
+        for marker in self.event_markers:
+            if marker:
+                marker.remove()
+        self.event_markers = []
+
+        # Get events from the app coordinator
+        events = self.app.service.events
+
+        if not events:
+            return
+
+        # Add markers for each event
+        for event in events:
+            event_marker = self.ax.scatter(
+                event.longitude, 
+                event.latitude, 
+                s=40, 
+                color='blue', 
+                marker='^', 
+                alpha=0.7,
+                zorder=3
+            )
+            # Add a small label with event name
+            self.ax.annotate(
+                event.name,
+                (event.longitude, event.latitude),
+                fontsize=8,
+                ha='center',
+                va='bottom',
+                xytext=(0, 5),
+                textcoords='offset points',
+                alpha=0.8
+            )
+            self.event_markers.append(event_marker)
+
+        self.canvas.draw_idle()
+
 
     def load_preferences(self):
         """Reload preferences from the service."""
@@ -174,3 +246,4 @@ class LocationPanel(ttk.Frame):
         self.distance_var.set(distance)
         self.distance_label.config(text=f"{distance} km")
         self._update_map_marker(lat, lon)
+        self._update_event_markers()

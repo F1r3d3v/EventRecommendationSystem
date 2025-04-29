@@ -1,4 +1,3 @@
-# fuzzy/custom_event_system.py
 from fuzzy.custom_mamdani import MamdaniFuzzySystem
 
 class CustomEventFuzzySystem:

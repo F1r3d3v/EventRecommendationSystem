@@ -1,4 +1,3 @@
-# fuzzy/fuzzy_system.py
 import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
@@ -96,7 +95,7 @@ class EventFuzzySystem:
             
             # Low recommendation rules
             ctrl.Rule(self.interest_match['low'] | self.time_overlap['no_overlap'] |
-                     self.budget_alignment['over_budget'], self.recommendation['low']),
+                     self.budget_alignment['over_budget'] | self.location_proximity['far'], self.recommendation['low']),
             
             ctrl.Rule(self.interest_match['low'] & self.location_proximity['far'], 
                      self.recommendation['low']),

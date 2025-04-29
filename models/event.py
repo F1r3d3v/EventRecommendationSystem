@@ -1,5 +1,3 @@
-# models/event.py
-from datetime import datetime
 import math
 
 class Event:
@@ -9,13 +7,13 @@ class Event:
         self.id = id
         self.name = name
         self.description = description
-        self.category = category  # Category string or list of categories
-        self.start_time = start_time  # datetime object
-        self.end_time = end_time  # datetime object
+        self.category = category
+        self.start_time = start_time 
+        self.end_time = end_time
         self.latitude = latitude
         self.longitude = longitude
         self.cost = cost
-        self.popularity = popularity # Currently unused but kept
+        self.popularity = popularity
 
         # Results from recommendation calculation - managed by RecommendationService
         self.recommendation_score = 0
@@ -25,6 +23,7 @@ class Event:
             "time_overlap": 0,
             "budget_alignment": 0,
         }
+
 
     def calculate_distance(self, user_lat, user_lon):
         """Calculate distance in kilometers between event location and user location"""
@@ -45,16 +44,20 @@ class Event:
         distance = R * c
         return distance
 
+
     def __eq__(self, other):
         if not isinstance(other, Event):
             return NotImplemented
         return self.id == other.id
 
+
     def __hash__(self):
         return hash(self.id)
 
+
     def __str__(self):
         return f"Event(id={self.id}, name='{self.name}')"
+
 
     def __repr__(self):
         return self.__str__()

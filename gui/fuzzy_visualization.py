@@ -1,18 +1,18 @@
 import tkinter as tk
 from tkinter import ttk
-import matplotlib
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 from skfuzzy import control as ctrl
 from tkinter import messagebox
-import functools # For partial function application
+import functools
+
+from config import VISUALIZATION_RESOLUTION
 
 class FuzzyVisualizationPanel(ttk.Frame):
     """Panel for visualizing the fuzzy system components."""
     def __init__(self, parent, fuzzy_system_wrapper):
         super().__init__(parent)
-        # ... (Initial backend check, system/simulation setup - same as before) ...
         self.fuzzy_system_wrapper = fuzzy_system_wrapper
         try:
             self.fuzzy_system = fuzzy_system_wrapper.control_system
@@ -23,7 +23,7 @@ class FuzzyVisualizationPanel(ttk.Frame):
                  raise TypeError("Passed wrapper lacks valid ControlSystemSimulation.")
         except AttributeError as e:
              messagebox.showerror("Init Error", f"Failed to get fuzzy system/sim: {e}")
-             return # Stop initialization
+             return
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -36,14 +36,14 @@ class FuzzyVisualizationPanel(ttk.Frame):
         self.notebook.add(self.rules_page, text="Rules")
         self.notebook.add(self.surface_page, text="Control Surface")
 
-        # Store references to input variables and slider vars
-        self.antecedent_vars = self._get_antecedent_vars() # Helper function
-        self.fixed_input_sliders = {} # label -> {'var': tkVar, 'widget': Scale}
-        self.fixed_input_labels = {} # label -> value Label widget
+        self.antecedent_vars = self._get_antecedent_vars()
+        self.fixed_input_sliders = {}
+        self.fixed_input_labels = {}
 
         self._setup_var_plots_page()
         self._setup_rules_page()
-        self._setup_surface_page() # Setup needs self.antecedent_vars
+        self._setup_surface_page()
+
 
     def _get_antecedent_vars(self):
         """Helper to extract antecedent variables from the wrapper."""
@@ -57,13 +57,12 @@ class FuzzyVisualizationPanel(ttk.Frame):
                  antecedents.append(var)
         return antecedents
 
+
     def _setup_var_plots_page(self):
-         # ... (manual plotting code - same as before) ...
         """Create plots for input and output variable membership functions manually."""
         plot_frame = ttk.Frame(self.var_plots_page)
         plot_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Get all variables including the consequent
         output_var = getattr(self.fuzzy_system_wrapper, 'recommendation', None)
         all_vars = self.antecedent_vars + ([output_var] if isinstance(output_var, ctrl.Consequent) else [])
 
@@ -131,7 +130,6 @@ class FuzzyVisualizationPanel(ttk.Frame):
 
 
     def _setup_rules_page(self):
-        # ... (same as before) ...
         """Display the list of fuzzy rules."""
         rules_text_frame = ttk.Frame(self.rules_page)
         rules_text_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -158,7 +156,6 @@ class FuzzyVisualizationPanel(ttk.Frame):
 
     def _setup_surface_page(self):
         """Setup the control surface visualization page with sliders for fixed inputs."""
-        # Main container frame for this page
         page_frame = ttk.Frame(self.surface_page)
         page_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -171,48 +168,45 @@ class FuzzyVisualizationPanel(ttk.Frame):
         # Handle case with insufficient input variables
         if len(vars_list) < 2:
              ttk.Label(control_frame, text="Need at least 2 input variables for surface plot.").pack()
-             # Setup dummy plot area if needed (similar to previous versions)
              self.surface_fig = Figure(figsize=(8, 6))
              self.surface_ax = self.surface_fig.add_subplot(111, projection='3d')
              self.surface_ax.text2D(0.5, 0.5, "Need >= 2 input variables", ha='center', va='center', transform=self.surface_ax.transAxes)
              self.surface_canvas = FigureCanvasTkAgg(self.surface_fig, master=page_frame) # Embed in page_frame
              self.surface_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
              self.surface_canvas.draw()
-             return # Stop setup
+             return
 
         # --- X/Y Axis Selection ---
         ttk.Label(control_frame, text="X Axis:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         self.x_var_label = tk.StringVar(value=vars_list[0])
         x_combo = ttk.Combobox(control_frame, textvariable=self.x_var_label, values=vars_list, width=20, state="readonly")
         x_combo.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-        x_combo.bind("<<ComboboxSelected>>", self._on_axis_change) # Update sliders/plot on change
+        x_combo.bind("<<ComboboxSelected>>", self._on_axis_change)
 
         ttk.Label(control_frame, text="Y Axis:").grid(row=0, column=2, padx=(15,5), pady=5, sticky=tk.W)
         self.y_var_label = tk.StringVar(value=vars_list[1])
         y_combo = ttk.Combobox(control_frame, textvariable=self.y_var_label, values=vars_list, width=20, state="readonly")
         y_combo.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
-        y_combo.bind("<<ComboboxSelected>>", self._on_axis_change) # Update sliders/plot on change
+        y_combo.bind("<<ComboboxSelected>>", self._on_axis_change)
 
         ttk.Button(control_frame, text="Update Surface View", command=self._update_surface).grid(
             row=0, column=4, padx=20, pady=5, sticky=tk.E)
 
-        control_frame.columnconfigure(4, weight=1) # Allow button to stick right
+        control_frame.columnconfigure(4, weight=1)
 
-        # --- Frame for Fixed Input Sliders ---
         self.fixed_inputs_frame = ttk.LabelFrame(page_frame, text="Fixed Input Values")
-        # Pack below controls, don't expand vertically, fill horizontally
         self.fixed_inputs_frame.pack(fill=tk.X, padx=10, pady=(5,0), ipady=5)
 
-        # --- Matplotlib Figure/Canvas Setup (Placeholder initially) ---
+        # --- Matplotlib Figure ---
         self.surface_fig = Figure(figsize=(8, 6))
-        self.surface_ax = None # Axes will be created/recreated in _update_surface
+        self.surface_ax = None
         self.surface_canvas = FigureCanvasTkAgg(self.surface_fig, master=page_frame)
         self.surface_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.surface_cbar = None
 
         # --- Initial Setup ---
-        self._update_fixed_input_sliders() # Create initial sliders
-        self._update_surface() # Initial plot
+        self._update_fixed_input_sliders()
+        self._update_surface()
 
 
     def _on_axis_change(self, event=None):
@@ -233,18 +227,14 @@ class FuzzyVisualizationPanel(ttk.Frame):
                 elif len(self.antecedent_vars) > 1 :
                      self.y_var_label.set(self.antecedent_vars[1].label if self.antecedent_vars[0].label == x_val else self.antecedent_vars[0].label)
 
-        self._update_fixed_input_sliders() # Update which sliders are shown
-        self._update_surface() # Redraw the plot
+        self._update_fixed_input_sliders()
+        self._update_surface()
 
 
     def _update_fixed_input_sliders(self):
         """Dynamically create/update sliders for fixed input variables."""
-        # Clear existing sliders from the frame
         for widget in self.fixed_inputs_frame.winfo_children():
             widget.destroy()
-        # Clear references (optional, helps garbage collection if needed)
-        # self.fixed_input_sliders.clear()
-        # self.fixed_input_labels.clear()
 
         x_label = self.x_var_label.get()
         y_label = self.y_var_label.get()
@@ -255,39 +245,36 @@ class FuzzyVisualizationPanel(ttk.Frame):
             var_label = var.label
             if var_label != x_label and var_label != y_label:
                 fixed_vars_exist = True
-                # Frame for this slider's row
+
                 row_frame = ttk.Frame(self.fixed_inputs_frame)
                 row_frame.grid(row=current_row, column=0, sticky=tk.EW, padx=5, pady=2)
-                row_frame.columnconfigure(1, weight=1) # Allow slider to expand
+                row_frame.columnconfigure(1, weight=1)
 
                 # Label for variable name
                 ttk.Label(row_frame, text=f"{var_label}:", width=18).grid(row=0, column=0, sticky=tk.W)
 
                 # Tk variable for slider value
                 if var_label not in self.fixed_input_sliders:
-                     # Initialize only if it doesn't exist, default to midpoint
                      default_val = 50.0
                      try: default_val = (var.universe.min() + var.universe.max()) / 2.0
-                     except: pass # Keep 50 if universe unavailable
+                     except: pass
                      tk_var = tk.DoubleVar(value=default_val)
                      self.fixed_input_sliders[var_label] = {'var': tk_var, 'widget': None}
                 else:
-                     # Reuse existing variable if already created
                      tk_var = self.fixed_input_sliders[var_label]['var']
 
-                # Scale (Slider) widget
-                # Use functools.partial to pass the label to the command
+                # Slider for variable value
                 slider_cmd = functools.partial(self._on_slider_change, var_label)
                 slider = ttk.Scale(row_frame, from_=0, to=100,
                                    variable=tk_var, orient=tk.HORIZONTAL,
                                    command=slider_cmd)
                 slider.grid(row=0, column=1, sticky=tk.EW, padx=5)
-                self.fixed_input_sliders[var_label]['widget'] = slider # Store reference
+                self.fixed_input_sliders[var_label]['widget'] = slider
 
                 # Label to display current value
                 value_label = ttk.Label(row_frame, text=f"{tk_var.get():.1f}", width=5)
                 value_label.grid(row=0, column=2, sticky=tk.E, padx=(0, 5))
-                self.fixed_input_labels[var_label] = value_label # Store reference
+                self.fixed_input_labels[var_label] = value_label
 
                 current_row += 1
 
@@ -303,12 +290,11 @@ class FuzzyVisualizationPanel(ttk.Frame):
 
     def _on_slider_change(self, var_label, value_str):
         """Callback when a fixed input slider value changes."""
-        # Update the value display label
         if var_label in self.fixed_input_labels:
             try:
                  value = float(value_str)
                  self.fixed_input_labels[var_label].config(text=f"{value:.1f}")
-            except ValueError: pass # Ignore if value is invalid temporarily
+            except ValueError: pass
             
         pass
 
@@ -332,7 +318,7 @@ class FuzzyVisualizationPanel(ttk.Frame):
             return
 
         # --- Calculate data grid ---
-        resolution = 15
+        resolution = VISUALIZATION_RESOLUTION
         try:
              x_min, x_max = x_var.universe.min(), x_var.universe.max()
              y_min, y_max = y_var.universe.min(), y_var.universe.max()
@@ -379,30 +365,18 @@ class FuzzyVisualizationPanel(ttk.Frame):
                      Z[i, j] = np.nan
 
         # --- Plotting ---
-
-        # ---> FIX: Clear the ENTIRE Figure <---
-        # Clear previous figure content, including axes and colorbar implicitly
         self.surface_fig.clear()
-        # Ensure references are cleared (good practice)
         self.surface_ax = None
         self.surface_cbar = None
-        # --- End Fix ---
-
-        # ---> FIX: Add a NEW Axes object AFTER clearing the figure <---
         try:
-             # add_subplot returns the new axes object
              self.surface_ax = self.surface_fig.add_subplot(111, projection='3d')
         except ValueError as e:
              print(f"Error adding subplot: {e}")
              messagebox.showerror("Plot Error", "Failed to recreate plot axes.")
-             # Draw an error message directly on the figure if axes creation failed
              self.surface_fig.text(0.5, 0.5, "Error creating plot axes", ha='center', va='center')
              self.surface_canvas.draw()
              return
-        # --- End Fix ---
 
-
-        # Plot the surface onto the NEW axes
         Z_masked = np.ma.masked_invalid(Z)
         plot_successful = False
         if Z_masked.count() > 0:
@@ -411,12 +385,10 @@ class FuzzyVisualizationPanel(ttk.Frame):
                 plot_successful = True
             except Exception as plot_error:
                  print(f"Error during plot_surface: {plot_error}")
-                 # Use text directly on the axes
                  self.surface_ax.text2D(0.5, 0.5, "Error during plotting", ha='center', va='center', transform=self.surface_ax.transAxes)
         else:
              self.surface_ax.text2D(0.5, 0.5, "No valid output data", ha='center', va='center', transform=self.surface_ax.transAxes)
 
-        # Set labels, title, and Z limits on the NEW axes
         self.surface_ax.set_xlabel(x_label)
         self.surface_ax.set_ylabel(y_label)
         self.surface_ax.set_zlabel(output_label)
@@ -431,9 +403,7 @@ class FuzzyVisualizationPanel(ttk.Frame):
 
         # Add a color bar if plotting was successful
         if plot_successful:
-            # Add colorbar relative to the new axes
             self.surface_cbar = self.surface_fig.colorbar(surf, ax=self.surface_ax, shrink=0.5, aspect=5)
-
 
         # Redraw the canvas containing the figure
         self.surface_canvas.draw()

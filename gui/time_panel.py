@@ -1,4 +1,3 @@
-# gui/time_panel.py
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
@@ -8,7 +7,7 @@ class TimePreferencePanel(ttk.Frame):
     """Panel for setting preferred time ranges."""
     def __init__(self, parent, app_coordinator):
         super().__init__(parent)
-        self.app = app_coordinator # Reference to the main app coordinator
+        self.app = app_coordinator
 
         # Internal list of (start_datetime, end_datetime) tuples
         self.time_ranges = []
@@ -32,14 +31,10 @@ class TimePreferencePanel(ttk.Frame):
         # Frame for adding a new time range
         add_frame = ttk.LabelFrame(self, text="Add New Time Range")
         add_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
-
-        # Use grid layout within the add_frame for better alignment
-        # Let column 1 (where comboboxes start) expand slightly if needed
         add_frame.columnconfigure(1, weight=0)
         add_frame.columnconfigure(2, weight=0)
         add_frame.columnconfigure(3, weight=0)
         add_frame.columnconfigure(4, weight=0)
-
 
         # Start Time Label
         ttk.Label(add_frame, text="Start Time:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
@@ -57,9 +52,9 @@ class TimePreferencePanel(ttk.Frame):
         ttk.Button(add_frame, text="Add Time Range", command=self._add_time_range).grid(
             row=2, column=0, columnspan=5, pady=(5, 10)) # Span all columns
 
-
         # Load initial preferences
         self.load_preferences()
+
 
     def _create_time_widgets(self, parent, target_row, default_hour, default_min, default_period):
         """
@@ -78,16 +73,13 @@ class TimePreferencePanel(ttk.Frame):
         min_combo = ttk.Combobox(parent, textvariable=min_var, values=min_values, width=3, state="readonly")
         period_combo = ttk.Combobox(parent, textvariable=period_var, values=["AM", "PM"], width=3, state="readonly")
 
-        # Grid the widgets within this function
         hour_combo.grid(row=target_row, column=1, padx=(0, 2), pady=5, sticky=tk.W)
         colon_label.grid(row=target_row, column=2, padx=0, pady=5, sticky=tk.W)
         min_combo.grid(row=target_row, column=3, padx=2, pady=5, sticky=tk.W)
         period_combo.grid(row=target_row, column=4, padx=(2, 5), pady=5, sticky=tk.W)
 
-        # Return ONLY the variables needed elsewhere
         return hour_var, min_var, period_var
 
-    # --- rest of the class remains the same ---
 
     def _parse_time_input(self, hour_var, min_var, period_var):
         """Parses time from combobox variables into 24-hour format hour and minute."""
@@ -102,9 +94,6 @@ class TimePreferencePanel(ttk.Frame):
             elif period == "AM" and hour12 == 12: # Midnight case
                 hour24 = 0
 
-            # Handle 12 PM case (remains 12) - this logic is correct
-            # Handle hour 24 (should be 0 if next day logic is applied later) - handled by replace
-
             return hour24, minute
         except ValueError:
             messagebox.showerror("Input Error", "Invalid time selected.")
@@ -117,9 +106,8 @@ class TimePreferencePanel(ttk.Frame):
         end_hour, end_min = self._parse_time_input(self.end_hour_var, self.end_min_var, self.end_period_var)
 
         if start_hour is None or end_hour is None:
-            return # Error handled in parse function
+            return
 
-        # Create datetime objects (using today's date for comparison logic)
         now = datetime.now()
         try:
             start_time = now.replace(hour=start_hour, minute=start_min, second=0, microsecond=0)
@@ -131,9 +119,6 @@ class TimePreferencePanel(ttk.Frame):
         # Handle overnight ranges (e.g., 10 PM to 2 AM)
         if end_time <= start_time:
             end_time += timedelta(days=1)
-
-        # Check for duplicate or overlapping ranges (optional but good practice)
-        # For simplicity, we'll allow overlaps here, but you could add checks.
 
         # Add to internal list and update UI
         self.time_ranges.append((start_time, end_time))
@@ -157,7 +142,7 @@ class TimePreferencePanel(ttk.Frame):
     def _update_time_listbox(self):
         """Updates the listbox display from the internal time_ranges list."""
         self.time_listbox.delete(0, tk.END)
-        # Sort ranges by start time for display consistency
+        # Sort ranges by start time
         self.time_ranges.sort(key=lambda x: x[0])
         for start, end in self.time_ranges:
             # Format for display
@@ -175,13 +160,11 @@ class TimePreferencePanel(ttk.Frame):
 
     def _notify_app(self):
         """Inform the application coordinator about the updated time ranges."""
-        # Pass a copy to avoid external modification
         self.app.time_preference_updated(self.time_ranges.copy())
 
 
     def load_preferences(self):
         """Loads time preferences from the service."""
         prefs = self.app.get_current_preferences()
-        # Ensure it's a list of tuples with datetime objects
         self.time_ranges = [(s, e) for s, e in prefs.preferred_times if isinstance(s, datetime) and isinstance(e, datetime)]
         self._update_time_listbox()

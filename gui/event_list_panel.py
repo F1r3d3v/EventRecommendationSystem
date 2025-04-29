@@ -1,14 +1,13 @@
-# gui/event_list_panel.py
 import tkinter as tk
 from tkinter import ttk
-from config import SCORE_HIGH_THRESHOLD, SCORE_MEDIUM_THRESHOLD
+from config import SCORE_HIGH_COLOR, SCORE_HIGH_THRESHOLD, SCORE_LOW_COLOR, SCORE_MEDIUM_COLOR, SCORE_MEDIUM_THRESHOLD
 
 class EventListPanel(ttk.Frame):
     """Panel for displaying event list with recommendations."""
     def __init__(self, parent, app_coordinator):
         super().__init__(parent)
-        self.app = app_coordinator # Reference to the main app coordinator
-        self.displayed_events = [] # Keep track of events currently in the listbox order
+        self.app = app_coordinator
+        self.displayed_events = []
 
         # --- UI Elements ---
         controls_frame = ttk.Frame(self)
@@ -20,14 +19,12 @@ class EventListPanel(ttk.Frame):
         sort_combo = ttk.Combobox(controls_frame, textvariable=self.sort_var,
                                 values=sort_options, width=15, state="readonly")
         sort_combo.pack(side=tk.LEFT, padx=5)
-        # Trigger app refresh when sort changes
         sort_combo.bind("<<ComboboxSelected>>", lambda e: self.app.refresh_recommendations())
 
         ttk.Label(controls_frame, text="Search:").pack(side=tk.LEFT, padx=(20, 5))
         self.search_var = tk.StringVar()
         search_entry = ttk.Entry(controls_frame, textvariable=self.search_var, width=20)
         search_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        # Trigger app refresh on key release in search
         search_entry.bind("<KeyRelease>", lambda e: self.app.refresh_recommendations())
 
         list_frame = ttk.Frame(self)
@@ -40,21 +37,23 @@ class EventListPanel(ttk.Frame):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.event_listbox.config(yscrollcommand=scrollbar.set)
 
-        # Bind selection event to notify the app coordinator
         self.event_listbox.bind("<<ListboxSelect>>", self._on_event_select)
+
 
     def get_sort_key(self):
         """Returns the currently selected sort key."""
         return self.sort_var.get()
 
+
     def get_search_term(self):
         """Returns the current search term."""
         return self.search_var.get()
 
+
     def display_events(self, events):
         """Populates the listbox with the given list of events."""
         self.event_listbox.delete(0, tk.END)
-        self.displayed_events = events # Store the current list
+        self.displayed_events = events
 
         for i, event in enumerate(events):
             text = f"{event.name} ({event.recommendation_score:.1f}%) - {event.category}"
@@ -62,19 +61,21 @@ class EventListPanel(ttk.Frame):
 
             # Color coding based on score using config thresholds
             if event.recommendation_score >= SCORE_HIGH_THRESHOLD:
-                self.event_listbox.itemconfig(i, {'bg': '#E6FFE6'})  # Light green
+                self.event_listbox.itemconfig(i, {'bg': SCORE_HIGH_COLOR})
             elif event.recommendation_score >= SCORE_MEDIUM_THRESHOLD:
-                self.event_listbox.itemconfig(i, {'bg': '#FFFFE0'})  # Light yellow (changed from CC)
+                self.event_listbox.itemconfig(i, {'bg': SCORE_MEDIUM_COLOR})
             else:
-                self.event_listbox.itemconfig(i, {'bg': '#FFE6E6'}) # Light red
+                self.event_listbox.itemconfig(i, {'bg': SCORE_LOW_COLOR})
+
 
     def select_first(self):
         """Selects the first item in the list if available."""
         if self.event_listbox.size() > 0:
             self.event_listbox.selection_set(0)
             self.event_listbox.activate(0)
-            self.event_listbox.see(0) # Ensure visible
-            self._on_event_select(None) # Trigger selection logic
+            self.event_listbox.see(0)
+            self._on_event_select(None)
+
 
     def _on_event_select(self, event_unused):
         """Handles event selection in the listbox and notifies the app."""
@@ -83,11 +84,10 @@ class EventListPanel(ttk.Frame):
             index = selected_indices[0]
             if 0 <= index < len(self.displayed_events):
                 selected_event = self.displayed_events[index]
-                # Notify the app coordinator about the selection
                 self.app.event_selected(selected_event)
         else:
-            # No selection, notify app coordinator
              self.app.event_selected(None)
+
 
     def get_selected_event(self):
         """Gets the currently selected event object."""

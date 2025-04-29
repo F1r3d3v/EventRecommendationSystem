@@ -1,7 +1,5 @@
-# models/user_preferences.py
 from config import (
-    DEFAULT_LOCATION, DEFAULT_MAX_DISTANCE, DEFAULT_MAX_BUDGET,
-    DEFAULT_CATEGORIES_WITH_WEIGHTS
+    DEFAULT_LOCATION, DEFAULT_MAX_DISTANCE, DEFAULT_MAX_BUDGET
 )
 
 class UserPreferences:
@@ -11,39 +9,44 @@ class UserPreferences:
         self.max_distance = DEFAULT_MAX_DISTANCE
         # Category -> weight (0-1). Store only selected categories.
         self.categories = {}
-        self.preferred_times = []  # List of (start_time, end_time) tuples
-        # Category -> max budget (Optional, not fully implemented in calc logic yet)
-        self.budget_categories = {}
+        # List of (start_time, end_time) tuples
+        self.preferred_times = []
         self.max_budget = DEFAULT_MAX_BUDGET
-        self.attended_events = []  # List of Event objects (or IDs if preferred)
+        self.attended_events = []
+
 
     def set_location(self, lat, lon):
         self.location["latitude"] = lat
         self.location["longitude"] = lon
 
+
     def set_max_distance(self, distance):
         self.max_distance = distance
 
+
     def set_max_budget(self, budget):
         self.max_budget = budget
+
 
     def set_category_preference(self, category, weight, is_selected):
         if is_selected:
             self.categories[category] = weight
         elif category in self.categories:
             del self.categories[category]
+            
 
     def set_preferred_times(self, time_ranges):
-        # Expects a list of (start_datetime, end_datetime) tuples
         self.preferred_times = time_ranges
+
 
     def add_attended_event(self, event):
         if event not in self.attended_events:
             self.attended_events.append(event)
 
+
     def remove_attended_event(self, event_to_remove):
-         # Assumes attended_events stores actual Event objects
          self.attended_events = [e for e in self.attended_events if e.id != event_to_remove.id]
+
 
     def get_interest_match_inputs(self, event):
         """
@@ -60,11 +63,9 @@ class UserPreferences:
                    boost is calculated independently.
         """
         # --- Calculate Base Score ---
-        if not self.categories:
+        if event.category not in self.categories:
             match_score = 50  # Neutral score if no preferences set
         else:
-            # Ensure current event categories are always treated as a set
-            
             current_event_categories = list()
             if isinstance(event.category, str):
                 current_event_categories.append(event.category)
@@ -77,8 +78,7 @@ class UserPreferences:
 
         # --- Calculate History Boost ---
         boost = 0
-        if self.attended_events: # Only calculate boost if history exists
-            # Ensure current event categories are a set (might recalculate but safer)
+        if self.attended_events:
             current_event_categories_for_boost = set()
             if isinstance(event.category, str):
                 current_event_categories_for_boost.add(event.category)
@@ -99,6 +99,7 @@ class UserPreferences:
 
         return match_score, boost
 
+
     def get_proximity_inputs(self, event):
         """
         Calculates distance relative to max distance.
@@ -113,6 +114,7 @@ class UserPreferences:
         distance = event.calculate_distance(self.location["latitude"], self.location["longitude"])
         return distance, self.max_distance
 
+
     def get_budget_inputs(self, event):
         """
         Provides event cost and user's max budget.
@@ -124,10 +126,8 @@ class UserPreferences:
         Returns:
             Tuple: (event_cost, max_budget)
         """
-        # TODO: Implement category-specific budget logic if needed
-        # current_max_budget = self.budget_categories.get(event.category, self.max_budget)
-        current_max_budget = self.max_budget
-        return event.cost, current_max_budget
+        return event.cost, self.max_budget
+
 
     def get_time_overlap_inputs(self, event):
         """
